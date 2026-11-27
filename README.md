@@ -71,7 +71,7 @@
 `Settings / Plugins → Add plugin`，填包名（带精确版本）：
 
 ```
-dsh-prompt-optimizer-shenfeng@1.0.0
+dsh-prompt-optimizer-shenfeng@1.1.1
 ```
 
 DSH 会用 `pnpm view` 先读音、再 `saveExact` 装进 profile，并自动把 bundle 的 patch 叠加进 loader。装完重启 DeepSeek Harness 让浏览器半边进入 boot 图。
@@ -79,7 +79,7 @@ DSH 会用 `pnpm view` 先读音、再 `saveExact` 装进 profile，并自动把
 ### 方式二：命令行
 
 ```powershell
-dsh plugin --profile desktop add dsh-prompt-optimizer-shenfeng@1.0.0
+dsh plugin --profile desktop add dsh-prompt-optimizer-shenfeng@1.1.1
 ```
 
 ### 方式三：本地目录（开发调试）
@@ -112,7 +112,7 @@ ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
 
 ```yaml
 minimumReleaseAgeExclude:
-  - dsh-prompt-optimizer-shenfeng@1.0.0
+  - dsh-prompt-optimizer-shenfeng@1.1.1
 ```
 
 ## 发布到 npm（维护者）
