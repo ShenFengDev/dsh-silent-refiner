@@ -171,11 +171,14 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 
 ## 性能与可靠性
 
-- **模板模块热取**：`statSync` 走顶层静态 import（每次优化都要用，动态 import 的额外 await 是纯开销）；模板 mod 按 mtime 缓存，文件没变就复用。
-- **模型路由缓存**：provider 的模型列表按 ctx 缓存 30 秒，每次优化省掉 2 次跨进程 IPC；模型列表变动最多 30 秒后生效。
+- **模板模块热取**：`statSync` 走顶层静态 import；模板 mod 按 mtime 缓存，文件没变就复用。`await prompts()` 只在 `/templates` 与 `/optimize` 分支内调用，`/silent` 开关与 404 路径不碰文件系统。
+- **模型路由缓存**：provider 列表 + provider 的模型列表都按 ctx 缓存 30 秒（WeakMap 隔离），每次优化省掉 3 次跨进程 IPC；列表变动最多 30 秒后生效。
+- **流式累加**：`text-delta` / `reasoning-delta` 用数组 push 最后 `join`，几千次 delta 不再反复重建字符串。
+- **请求解码**：`?q=` 先按首字符 `'{'` 判明文 JSON、否则 inflate——明文路径零异常，压缩路径只在 inflate 失败时回落一次（raw deflate 首字节是 BFINAL/BTYPE 位，没有固定魔数，不能靠头字节判定）。
 - **长提示词打包**：base64 用 8192 字节分块 `String.fromCharCode.apply`，避免逐字符 `+=` 导致的多次字符串重建。
-- **请求竞态隔离**：每个会话独立记录最新请求 id，同会话连点只认最后一次、跨会话互不干扰（旧实现用单值会误取消别的会话）。
+- **请求竞态隔离**：每个会话独立记录最新请求 id，同会话连点只认最后一次、跨会话互不干扰。
 - **静默优化零阻塞**：独立 LLM 通道 + 90 秒超时 + turn 取消信号，失败/超时一律降级原文，绝不卡住对话。
+- **UI 渲染减负**：tab 标题不再订阅 `useTabInfo`（静态文案，避免随每次结果推送多渲染一轮）；`selectDraft`/`useInput` fallback 提到模块级不随渲染重建；静默开关读写合并为一个 `silentRequest`；按钮「优化中」态只在成功/失败一条路径上复位，不再双重复位。
 
 ## 文件
 
@@ -198,6 +201,7 @@ node F:\WorkSpace\_verify_client.mjs    # 离线跑 client bundle，核对 slot 
 node F:\WorkSpace\_verify_menu.mjs      # 模拟点按钮→弹菜单→选模板→带 templateId 发请求 11 项
 node F:\WorkSpace\_verify_structured.mjs # 结构化模板 7 段结构 + buildRequest 20 项
 node F:\WorkSpace\_verify_silent.mjs    # 静默优化：/silent 状态路由 + agent/pre-step 替换 + source.optimizer 20 项
+node F:\WorkSpace\_verify_decode.mjs    # 请求解码：deflate-raw 与明文 base64url 两条路径 + 空输入，走真实 host handler
 ```
 
 ## 排障
