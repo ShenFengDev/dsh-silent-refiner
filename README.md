@@ -38,6 +38,7 @@
 | 可复制 | 面板顶栏「复制」按钮（`navigator.clipboard` + `execCommand` 兜底）。 |
 | 原始输入 | 折叠区（`<details>`），默认收起，便于对照。 |
 | 静默优化 | 「✦ 优化」旁的开关。打开后输入框原文不变，发送时由宿主 `agent/pre-step` 把用户消息正文替换为按**所选类型**优化后的文本。开关状态按会话存在宿主内存（`GET /dsh-prompt-optimizer/silent`），切回来仍在；仅替换第一步的纯文本用户消息，含附件/图片/后续 tool 轮次一律跳过，优化失败自动降级原文，绝不阻塞对话。 |
+| 气泡对照 | 静默替换后的消息在 `source.optimizer` 上带 `originalText` / `optimizedText`（保留 `kind:'user'`）；浏览器半边注册 `conversation.chat.user.before` chain 槽，在用户气泡上方以折叠块显示「原文 / 实际发送给模型」，可展开逐字核对。纯展示、不影响模型输入。 |
 | 手动调试 | `GET /dsh-prompt-optimizer/optimize?q=<base64url(JSON)>` 直接可用，不依赖浏览器。 |
 
 5 种优化类型（照 prompt-optimizer 与结构化提示词仓库的策略移植，见 `lib/prompts.js`）：
@@ -149,7 +150,10 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 发送时（静默优化开启的会话）：
   ctx.on('agent/pre-step')  ◄──  next() 拿到将进入模型的 messages
     └ 纯文本用户消息 → optimizeSilent(独立 ctx.llm) → freezeMessage 替换 content
+       ├ source.optimizer = {originalText, optimizedText}（保留 kind:'user'）
        └ 失败/附件/后续 step → 原文放行，绝不阻塞对话
+  conversation.chat.user.before ◄──  select 读 source.optimizer
+    └ 气泡上方折叠显示「原文 / 实际发送给模型」
 ```
 
 为什么走 GET + query：DSH 的 `webServer` prefix 路由只对 `handler` 形态读请求，`resource` 形态直接对非 GET/HEAD 返回 405，所以请求参数压进 `?q=`（base64url JSON）。
@@ -171,10 +175,10 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 node --check lib/client.js
 node --check lib/host.js
 node F:\WorkSpace\dsh-doctor.mjs        # 五项：manifest / host mount / client export / bundle 注册 / files
-node F:\WorkSpace\_verify_client.mjs    # 离线跑 client bundle，核对 3 个 slot 注册点与 key
-node F:\WorkSpace\_verify_menu.mjs      # 模拟点按钮→弹菜单→选模板→带 templateId 发请求
+node F:\WorkSpace\_verify_client.mjs    # 离线跑 client bundle，核对 slot 注册点（含气泡对照）与 key
+node F:\WorkSpace\_verify_menu.mjs      # 模拟点按钮→弹菜单→选模板→带 templateId 发请求 11 项
 node F:\WorkSpace\_verify_structured.mjs # 结构化模板 7 段结构 + buildRequest 20 项
-node F:\WorkSpace\_verify_silent.mjs    # 静默优化：/silent 状态路由 + agent/pre-step 替换 17 项
+node F:\WorkSpace\_verify_silent.mjs    # 静默优化：/silent 状态路由 + agent/pre-step 替换 + source.optimizer 20 项
 ```
 
 ## 排障
