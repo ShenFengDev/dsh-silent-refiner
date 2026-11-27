@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt optimizer",
+    "description": "Optimize the prompt you typed in the composer using the model currently selected in the conversation. Click the ✦ Optimize button to pick one of four optimization types and read or copy the result in the right sidebar."
+  }
+}
