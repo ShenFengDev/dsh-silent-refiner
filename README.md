@@ -5,39 +5,40 @@
 > 插件名 `dsh-silent-refiner` 取自它最核心的差异化能力——**静默优化**（发送前无感把提示词换成优化版，输入框保持不变）。内部 HTTP 路由固定为 `/dsh-prompt-optimizer/*`、tab key 为 `dsh-prompt-optimizer`，都与包名解耦，是稳定标识，下面的接口/排障里的路径都按这个来。从旧包名 `dsh-prompt-optimizer-shenfeng` 迁移的用户需要重新安装一次。
 
 - 宿主半边：暴露只读 GET 接口 + 注册 `agent/pre-step` 钩子做静默优化，模型调用一律走 DSH 的 `ctx.llm`（凭据在宿主侧，插件不接触 apiKey）。
-- 浏览器半边：输入框右侧「✦ 优化」入口（点它弹出上拉类型选择窗 → 右侧栏结果 tab）+ 一个「静默优化」开关。
+- 浏览器半边：输入框右侧「✦ 优化」入口（点它弹出上拉选择窗 → 右侧栏结果 tab）。「静默优化提示词」是选择窗里的一个可选项，不占独立按钮。
 - 不写文件、不落库、不向任何第三方转发提示词；不使用 iframe，不碰宿主 DOM 结构。
 
 ## 交互
 
-只有一条线：
+只有一条线、一个按钮：
 
 ```
-输入框写提示词  →  点输入框右侧「✦ 优化」  →  上拉窗选优化类型  →  右侧栏输出优化结果  →  「复制」
+输入框写提示词  →  点输入框右侧「✦ 优化」  →  上拉窗里选一项  →  …  →  「复制」
 ```
 
-点「✦ 优化」会先弹出一个上拉窗口（portal 到 `document.body`，落在按钮上方，类似 DSH 选模型），列出 5 种优化类型；选中后才发起优化。
+点「✦ 优化」会先弹出一个上拉窗口（portal 到 `document.body`，落在按钮上方，类似 DSH 选模型），列出 5 种优化类型 + 1 个「静默优化提示词」可选项：
 
-旁边的「静默优化」开关是另一条线：打开后**输入框内容保持不变**，你在对话框里正常发送时，实际送给模型的提示词会被自动替换成「按你最后选的优化类型优化后的版本」。它不改变输入框、不改标题栏，只在发送前一刻（宿主 `agent/pre-step`）无感替换。两种用法互不冲突：
+- 选**优化类型**（通用/分析式/输出格式/对话消息/结构化）→ 立刻用对话中当前选中的模型优化，结果输出到右侧栏，可复制。
+- 选**「静默优化提示词」** → 只切换静默开关（再点一次关闭），不改输入框、不立刻发优化请求。开启后你正常发送消息时，实际送给模型的提示词会被自动替换成「按你最后选的优化类型优化后的版本」；输入框内容始终不变。
 
 ```
 手动：输入框写 → 点「✦ 优化」→ 选类型 → 侧边栏看结果 / 复制
-静默：打开「静默优化」→ 选类型（决定用哪种规则）→ 正常发送消息 → 模型收到优化后的提示词
+静默：点「✦ 优化」→ 选「静默优化提示词」开启 → 再点「✦ 优化」选一次类型（决定规则）→ 正常发送消息 → 模型收到优化后的提示词
 ```
 
-没有标题栏按钮、没有「填入输入框」、没有「重新优化」。
+没有标题栏按钮、没有独立静默开关按钮、没有「填入输入框」、没有「重新优化」。
 
 ## 功能
 
 | 能力 | 说明 |
 | --- | --- |
 | 入口 | 只有一个：`conversation.input.right`（list 槽），贴着输入框。**不能**用 `conversation.session.header.corner`——那是 single 槽，已被 `ui-sidebar-right` 的展开按钮占满，注册进去不会渲染。 |
-| 类型选择 | 点「✦ 优化」先弹上拉窗（原生 DOM + portal 到 body，零新增依赖），选 5 种优化类型之一；选中后把 `templateId` 随请求带上。输入框为空时不弹窗，直接给错误态。 |
+| 类型选择 | 点「✦ 优化」先弹上拉窗（原生 DOM + portal 到 body，零新增依赖），列出 5 种优化类型 + 1 个「静默优化提示词」可选项。选类型后把 `templateId` 随请求带上并立即优化；选「静默优化提示词」只切开关。输入框为空时不弹窗，直接给错误态。 |
 | 模型来源 | 读 `ctx.modelDirectories.directoryFor(sessionId)` 的 `current`（即输入框上方那个模型选择器），把 `provider/model/reasoningEffort` 随请求带上；宿主侧还会用 `ctx.llm.listProviders()/listModels()` 复核可路由性，不可路由才回落部署默认模型。**任何路径都不会硬编码模型名。** |
 | 结果落点 | `ctx.sidebarRight.openContent('promptOptimizer', payload, { key: 'result' })`，同一 key 复用同一个 tab，重复优化只刷新内容。**侧边栏被关掉时会先 `layout.openRightbar(true, false)` 重新打开容器、再点展开按钮，然后最多重试 2 秒**——优化进行中/输出时关掉侧边栏，结果出来也会自动重新打开，而不是报错。全失败才弹提示，不再静默失败。 |
 | 可复制 | 面板顶栏「复制」按钮（`navigator.clipboard` + `execCommand` 兜底）。 |
 | 原始输入 | 折叠区（`<details>`），默认收起，便于对照。 |
-| 静默优化 | 「✦ 优化」旁的开关。打开后输入框原文不变，发送时由宿主 `agent/pre-step` 把用户消息正文替换为按**所选类型**优化后的文本。开关状态按会话存在宿主内存（`GET /dsh-prompt-optimizer/silent`），切回来仍在；仅替换第一步的纯文本用户消息，含附件/图片/后续 tool 轮次一律跳过，优化失败自动降级原文，绝不阻塞对话。 |
+| 静默优化 | 「✦ 优化」上拉窗里的「静默优化提示词」可选项（再点一次关闭，主按钮点亮表示开启）。开启后输入框原文不变，发送时由宿主 `agent/pre-step` 把用户消息正文替换为按**所选类型**优化后的文本。开关状态按会话存在宿主内存（`GET /dsh-prompt-optimizer/silent`），切回来仍在；仅替换第一步的纯文本用户消息，含附件/图片/后续 tool 轮次一律跳过，优化失败自动降级原文，绝不阻塞对话。 |
 | 气泡对照 | 静默替换后的消息在 `source.optimizer` 上带 `originalText` / `optimizedText`（保留 `kind:'user'`）；浏览器半边注册 `conversation.chat.user.before` chain 槽，在用户气泡上方以折叠块显示「原文 / 实际发送给模型」，可展开逐字核对。纯展示、不影响模型输入。 |
 | 手动调试 | `GET /dsh-prompt-optimizer/optimize?q=<base64url(JSON)>` 直接可用，不依赖浏览器。 |
 
@@ -138,9 +139,9 @@ minimumReleaseAgeExclude:
 4. 点「复制」拿去用。
 
 静默优化：
-1. 点输入框右侧的「静默优化」开关（点亮）。
-2. 点「✦ 优化」选一次优化类型——这次选择决定静默优化用哪种规则（之后可在任意一次「✦ 优化」里改）。
-3. 输入框保持你原来的写法，正常发送消息即可。模型收到的是优化后的版本，聊天气泡里显示的也是优化后的文本。
+1. 点输入框右侧的「✦ 优化」→ 在上拉窗里选「静默优化提示词」（主按钮点亮表示已开启；再点一次同一项即可关闭）。
+2. 再点「✦ 优化」选一次优化类型——这次选择决定静默优化用哪种规则（之后可在任意一次「✦ 优化」里改）。
+3. 输入框保持你原来的写法，正常发送消息即可。模型收到的是优化后的版本，聊天气泡里显示的也是优化后的文本（上方折叠块可对照原文）。
 
 标签显示「默认模型」表示浏览器端读不到会话选择（例如新会话还没选过模型），此时宿主用部署默认模型兜底。
 
@@ -152,7 +153,7 @@ minimumReleaseAgeExclude:
 conversation.input.right
   ├ 读 draft + 当前选中模型
   ├ 点「✦ 优化」→ 上拉窗选 templateId  ───────────►  GET /dsh-prompt-optimizer/optimize?q=<base64url(JSON)>
-  └ 静默开关 → 写会话状态             ───────────►  GET /dsh-prompt-optimizer/silent?sid=&on=&tpl=
+  └ 上拉窗选「静默优化提示词」→ 写会话状态             ───────────►  GET /dsh-prompt-optimizer/silent?sid=&on=&tpl=
                                                 │
 sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 → 部署默认
   └ 结果 / 复制  ◄───────────────────────────────├ prompts.buildRequest: 模板 → {system, messages}
@@ -199,6 +200,7 @@ node --check lib/host.js
 node F:\WorkSpace\dsh-doctor.mjs        # 五项：manifest / host mount / client export / bundle 注册 / files
 node F:\WorkSpace\_verify_client.mjs    # 离线跑 client bundle，核对 slot 注册点（含气泡对照）与 key
 node F:\WorkSpace\_verify_menu.mjs      # 模拟点按钮→弹菜单→选模板→带 templateId 发请求 11 项
+node F:\WorkSpace\_verify_silent_menu.mjs # 静默项在菜单中：点击只写开关、不发优化请求 6 项
 node F:\WorkSpace\_verify_structured.mjs # 结构化模板 7 段结构 + buildRequest 20 项
 node F:\WorkSpace\_verify_silent.mjs    # 静默优化：/silent 状态路由 + agent/pre-step 替换 + source.optimizer 20 项
 node F:\WorkSpace\_verify_decode.mjs    # 请求解码：deflate-raw 与明文 base64url 两条路径 + 空输入，走真实 host handler
@@ -212,7 +214,7 @@ node F:\WorkSpace\_verify_decode.mjs    # 请求解码：deflate-raw 与明文 b
 | 点了没弹出右侧栏 | 该会话的 rightbar surface 未挂载（如主面板切到别的 panel，或侧边栏被整个关掉） | 插件会自动重新打开侧边栏并重试 2 秒；仍失败回到对话视图再点 |
 | 面板显示「优化失败：模型调用失败：…」 | 上游 provider 报错（如 502） | 换模型或稍后重试；错误原文会透传 |
 | 标签是「默认模型」 | 浏览器端读不到会话选中模型 | 在输入框模型选择器里选一次模型 |
-| 静默优化没生效 | 该会话开关没开 / 消息含附件 / 是后续 tool 轮次 | 确认开关点亮、选过类型；只替换第一步纯文本用户消息 |
+| 静默优化没生效 | 该会话开关没开 / 消息含附件 / 是后续 tool 轮次 | 确认「✦ 优化」按钮点亮（=静默已开）、选过类型；只替换第一步纯文本用户消息 |
 | 静默优化让对话变慢 | 发送前会先跑一次 LLM 优化（独立通道，90 秒超时） | 属预期；失败/超时会自动降级原文，不阻塞 |
 | `content.some is not a function` | 传了裸字符串 messages | 已在 `normalizeMessages` 归一化为 block 数组 |
 | patch 改了没反应 | ESM 模块缓存 | 宿主代码改动需重启；只有 row 增删支持热加载 |
