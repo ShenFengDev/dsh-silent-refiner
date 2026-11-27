@@ -1,6 +1,8 @@
-# dsh-prompt-optimizer
+# dsh-prompt-optimizer-shenfeng
 
 把 [prompt-optimizer](https://github.com/linshenkx/prompt-optimizer) 的优化策略搬进 DeepSeek Harness（DSH）：**用对话中当前选中的模型**优化你的提示词，**结果只显示在右侧栏**，可一键复制。
+
+> npm 包名为 `dsh-prompt-optimizer-shenfeng`（`dsh-prompt-optimizer` 已被占用）。内部 HTTP 路由仍固定为 `/dsh-prompt-optimizer/*`，与包名解耦，是稳定标识，下面的接口/排障里的路径都按这个来。
 
 - 宿主半边：只暴露两个只读 GET 接口，模型调用一律走 DSH 的 `ctx.llm`（凭据在宿主侧，插件不接触 apiKey）。
 - 浏览器半边：输入框右侧一个「✦ 优化」入口 → 点它弹出上拉类型选择窗 → 右侧栏结果 tab（只有「复制」按钮）。**除此之外没有别的按钮。**
@@ -37,22 +39,65 @@
 | `output-format-optimize` | 输出格式强化 | 强化输出格式约定（分区、字段、示例） |
 | `message-optimize` | 对话消息优化 | 面向多轮对话的消息结构优化 |
 
-## 安装
+## 安装（npm 包，推荐）
 
-插件已登记进 `C:\Users\wddsf\.dsh\profiles\desktop`：
+包名：`dsh-prompt-optimizer-shenfeng`（npm 上 `dsh-prompt-optimizer` 已被他人占用）。
 
-1. `package.json` → `dependencies` 有 `"dsh-prompt-optimizer": "link:F:/WorkSpace/dsh-prompt-optimizer"`，`dsh.profile.bundles` 末尾含 `dsh-prompt-optimizer`。
-2. `node_modules/dsh-prompt-optimizer` 是指向本仓库的 junction。
-3. `cordis.patch.yml` 末尾有一条 insert row：
+### 方式一：DSH 图形界面
+
+`Settings / Plugins → Add plugin`，填包名（带精确版本）：
+
+```
+dsh-prompt-optimizer-shenfeng@1.0.0
+```
+
+DSH 会用 `pnpm view` 先读音、再 `saveExact` 装进 profile，并自动把 bundle 的 patch 叠加进 loader。装完重启 DeepSeek Harness 让浏览器半边进入 boot 图。
+
+### 方式二：命令行
+
+```powershell
+dsh plugin --profile desktop add dsh-prompt-optimizer-shenfeng@1.0.0
+```
+
+### 方式三：本地目录（开发调试）
+
+`Add plugin` 里填本仓库的绝对路径，或让 profile 的 `package.json` 依赖指向它：
+
+1. `package.json` → `dependencies` 有 `"dsh-prompt-optimizer-shenfeng": "link:F:/WorkSpace/dsh-prompt-optimizer"`，`dsh.profile.bundles` 末尾含该包名。
+2. `node_modules/dsh-prompt-optimizer-shenfeng` 是指向本仓库的 junction。
+
+bundle 的 `cordis.patch.yml` 只插一行，且 `name` 必须与包名一致：
 
 ```yaml
 - insert:
     - id: prompt-optimizer
-      name: dsh-prompt-optimizer
+      name: dsh-prompt-optimizer-shenfeng
       config: {}
 ```
 
 改 profile 配置时**必须**用 UTF-8 写、并保持 YAML 缩进正确；patch 解析失败会让整棵插件树不重载。
+
+### 最小发布时效坑（若装不上）
+
+profile 若开启了 pnpm 的 `minimumReleaseAge`，刚发布 24 小时内的版本会被拒：
+
+```
+ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
+```
+
+把精确版本加进 profile 的 `pnpm-workspace.yaml`：
+
+```yaml
+minimumReleaseAgeExclude:
+  - dsh-prompt-optimizer-shenfeng@1.0.0
+```
+
+## 发布到 npm（维护者）
+
+1. `npm version patch|minor|major`（同步 `package.json.version` 与 git tag）。
+2. `npm login`（需 npm 账号 token；本机默认 registry `https://registry.npmjs.org/`）。
+3. `npm publish --access public`（作用域包要 `--access public`；本包是非作用域，直接 `npm publish`）。
+4. 发完在 DSH 里用 `包名@版本` 安装。发布制品由 `files` 字段决定：`lib/*.js`、`cordis.patch.yml`、`locale/*.json`、`icon.svg`、`README.md`，共 9 个文件。
 
 ## 生效方式（重要）
 
@@ -93,7 +138,8 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 | `lib/host.js` | 宿主半边：路由注册 + 模型解析 + LLM 调用 |
 | `lib/prompts.js` | 4 个优化模板（改写自 prompt-optimizer 的 `general-optimize` / `analytical-optimize` / `output-format-optimize` / `context-message-optimize`），提供 `buildRequest(template, prompt) → {system, messages}` |
 | `lib/client.js` | 浏览器半边：tab kind 注册、结果面板、输入框入口、样式自注入 |
-| `cordis.patch.yml` | bundle 补丁层（insert 一行） |
+| `cordis.patch.yml` | bundle 补丁层（insert 一行，`name` = 包名） |
+| `locale/en.json`、`locale/zh.json` | 插件页显示用的标题/描述（不激活插件也能读到） |
 | `icon.svg` | 插件图标 |
 
 ## 自检
