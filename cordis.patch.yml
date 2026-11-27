@@ -1,0 +1,6 @@
+# 本 bundle 只插入一行：把插件挂到 dsh 的 loader 上。
+# host 半边（lib/index.js）注册 /dsh-prompt-optimizer 路由，
+# client 半边（lib/client.js）注册右侧栏 tab 与会话标题区入口。
+- insert:
+    - id: prompt-optimizer
+      name: dsh-prompt-optimizer
