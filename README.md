@@ -51,6 +51,17 @@
 | `message-optimize` | 对话消息优化 | 面向多轮对话的消息结构优化 |
 | `structured-optimize` | 结构化提示词 | 按 7 段结构重组（身份/目标/硬性规则/工具策略/输出格式/数据不足时/示例），照 [YuChenLiao/dsh-plugin-structured-prompt](https://github.com/YuChenLiao/dsh-plugin-structured-prompt) 规则移植 |
 
+## 推荐搭配：dsh-claude-preset
+
+[dsh-claude-preset](https://github.com/killher1/dsh-claude-preset) 是一个把 Claude Code 的行为体系（系统提示词、核心工具描述、Plan Mode、多段式上下文压缩）接入 DSH 的智能体预设插件，和本插件正好互补：
+
+- **本插件管"输入"**：把你在输入框写的提示词优化成结构清晰的形态，尤其 `structured-optimize` 的七段式结构。
+- **claude-preset 管"执行"**：让 agent 按 Claude Code 的任务拆解与工具使用习惯去理解和执行。
+
+典型叠加用法：打开本插件的「静默优化」并选 `structured-optimize`，同时在新会话的预设下拉里选「Claude Code 预设」——输入被结构化改写，agent 又按 Claude Code 的方式执行，任务边界更清晰、工具调用更稳。
+
+它与本插件相互独立、互不依赖，单独用也能装：DSH 插件界面填 `dsh-claude-preset`，或 CLI `dsh plugin --profile desktop add dsh-claude-preset`。
+
 ## 安装（npm 包，推荐）
 
 包名：`dsh-prompt-optimizer-shenfeng`（npm 上 `dsh-prompt-optimizer` 已被他人占用）。
