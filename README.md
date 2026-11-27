@@ -16,14 +16,17 @@
 输入框写提示词  →  点输入框右侧「✦ 优化」  →  上拉窗里选一项  →  …  →  「复制」
 ```
 
-点「✦ 优化」会先弹出一个上拉窗口（portal 到 `document.body`，落在按钮上方，类似 DSH 选模型），列出 5 种优化类型 + 1 个「静默优化提示词」可选项：
+点「✦ 优化」会先弹出一个上拉窗口（portal 到 `document.body`，落在按钮上方，类似 DSH 选模型），分三块：
 
-- 选**优化类型**（通用/分析式/输出格式/对话消息/结构化）→ 立刻用对话中当前选中的模型优化，结果输出到右侧栏，可复制。
-- 选**「静默优化提示词」** → 菜单最后一项是一个左右滑动开关（toggle），拨一下开启/关闭，不改输入框、不立刻发优化请求。开启后你正常发送消息时，实际送给模型的提示词会被自动替换成「按你最后选的优化类型优化后的版本」；输入框内容始终不变。
+- **优化类型**（5 项）：通用 / 分析式 / 输出格式 / 对话消息 / 结构化。选一项 → 立刻用菜单里选定的模型优化，结果输出到右侧栏，可复制。
+- **静默优化提示词**（toggle 开关）：左右滑动开关，拨一下开启/关闭，不改输入框、不立刻发优化请求。开启后你正常发送消息时，实际送给模型的提示词会被自动替换成「按你最后选的优化类型优化后的版本」；输入框内容始终不变。
+- **优化模型**：默认是「跟随对话模型」（即用输入框上方那个模型选择器选中的模型），也列出 DSH 已导入的全部供应商/模型可临时切换；点某个模型若支持思考程度，会就地展开 effort 子行供挑选（默认取该模型的 `defaultEffort`）。**这里选模型只影响本次优化，绝不会改动你对话框里选中的模型。**
+- **中断优化**：优化进行中再点「✦ 优化」，菜单底部会出现「中断优化」，点一下立即中断请求（侧边栏显示「已中断优化」）。
 
 ```
-手动：输入框写 → 点「✦ 优化」→ 选类型 → 侧边栏看结果 / 复制
+手动：输入框写 → 点「✦ 优化」→（可选：换优化模型/思考程度）→ 选类型 → 侧边栏看结果 / 复制
 静默：点「✦ 优化」→ 选「静默优化提示词」开启 → 再点「✦ 优化」选一次类型（决定规则）→ 正常发送消息 → 模型收到优化后的提示词
+中断：优化中点「✦ 优化」→ 选「中断优化」→ 请求立即中止
 ```
 
 没有标题栏按钮、没有独立静默开关按钮、没有「填入输入框」、没有「重新优化」。
@@ -33,8 +36,9 @@
 | 能力 | 说明 |
 | --- | --- |
 | 入口 | 只有一个：`conversation.input.right`（list 槽），贴着输入框。**不能**用 `conversation.session.header.corner`——那是 single 槽，已被 `ui-sidebar-right` 的展开按钮占满，注册进去不会渲染。 |
-| 类型选择 | 点「✦ 优化」先弹上拉窗（原生 DOM + portal 到 body，零新增依赖），列出 5 种优化类型 + 1 个「静默优化提示词」开关项。选类型后把 `templateId` 随请求带上并立即优化；拨「静默优化提示词」开关只切状态。**输入框为空时点「✦ 优化」也会弹菜单**（静默开关随时可切）；此时若选了某个优化类型，才在侧边栏给出「输入为空」的错误态，不发优化请求。 |
-| 模型来源 | 读 `ctx.modelDirectories.directoryFor(sessionId)` 的 `current`（即输入框上方那个模型选择器），把 `provider/model/reasoningEffort` 随请求带上；宿主侧还会用 `ctx.llm.listProviders()/listModels()` 复核可路由性，不可路由才回落部署默认模型。**任何路径都不会硬编码模型名。** |
+| 类型选择 | 点「✦ 优化」先弹上拉窗（原生 DOM + portal 到 body，零新增依赖），列出 5 种优化类型 + 1 个「静默优化提示词」开关项 + 优化模型区。选类型后把 `templateId` 随请求带上并立即优化；拨「静默优化提示词」开关只切状态。**输入框为空时点「✦ 优化」也会弹菜单**（静默开关/模型随时可切）；此时若选了某个优化类型，才在侧边栏给出「输入为空」的错误态，不发优化请求。 |
+| 优化模型选择 | 菜单里「优化模型」区默认「跟随对话模型」；列出 DSH 已导入的全部 provider/model（只读 `ModelDirectory.groups`，**不调 `directory.select()`，不改对话框选中模型**），可临时选一个用于本次优化；支持思考程度的模型就地展开 effort 子行（默认 `defaultEffort`）。`provider/model/reasoningEffort` 随优化请求带上，宿主侧 `ctx.llm.listProviders()/listModels()` 复核可路由性，不可路由才回落部署默认。**任何路径都不会硬编码模型名。** |
+| 可中断 | 每次优化用 `AbortController`，同一会话再次发起先中断上一次；运行中菜单底部出现「中断优化」，点击即 `abort()`，浏览器断开 fetch 会连带触发宿主 `res.on('close')` 的 abort，两端一起停；侧边栏显示「已中断优化」。 |
 | 结果落点 | `ctx.sidebarRight.openContent('promptOptimizer', payload, { key: 'result' })`，同一 key 复用同一个 tab，重复优化只刷新内容。**侧边栏被关掉时会先 `layout.openRightbar(true, false)` 重新打开容器、再点展开按钮，然后最多重试 2 秒**——优化进行中/输出时关掉侧边栏，结果出来也会自动重新打开，而不是报错。全失败才弹提示，不再静默失败。 |
 | 可复制 | 面板顶栏「复制」按钮（`navigator.clipboard` + `execCommand` 兜底）。 |
 | 原始输入 | 折叠区（`<details>`），默认收起，便于对照。 |
@@ -134,9 +138,9 @@ minimumReleaseAgeExclude:
 
 手动优化：
 1. 在输入框里写好（或粘贴）要优化的提示词。
-2. 点输入框右侧的「✦ 优化」→ 弹出上拉窗，选一种优化类型。
+2. 点输入框右侧的「✦ 优化」→ 弹出上拉窗。默认「跟随对话模型」；想换的话在「优化模型」区选一个 provider/model（支持思考程度的再挑 effort），然后选一种优化类型。
 3. 右侧栏打开「提示词优化」tab：顶栏是模型标签 + 「复制」，正文是优化结果，底部可展开看原始输入。
-4. 点「复制」拿去用。
+4. 点「复制」拿去用。优化太久想停：再点「✦ 优化」→ 选「中断优化」。
 
 静默优化：
 1. 点输入框右侧的「✦ 优化」→ 在上拉窗里选「静默优化提示词」（主按钮点亮表示已开启；再点一次同一项即可关闭）。
@@ -152,7 +156,9 @@ minimumReleaseAgeExclude:
 ─────────────────────────────             ──────────────────────────────────
 conversation.input.right
   ├ 读 draft + 当前选中模型
-  ├ 点「✦ 优化」→ 上拉窗选 templateId  ───────────►  GET /dsh-prompt-optimizer/optimize?q=<base64url(JSON)>
+  ├ 点「✦ 优化」→ 上拉窗：选 templateId + 优化模型(provider/model/effort)
+  │                                  ───────────►  GET /dsh-prompt-optimizer/optimize?q=<base64url(JSON)>
+  │  └ AbortController：再次发起/点「中断优化」→ abort fetch → 宿主 res.on('close') 一起停
   └ 上拉窗选「静默优化提示词」→ 写会话状态             ───────────►  GET /dsh-prompt-optimizer/silent?sid=&on=&tpl=
                                                 │
 sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 → 部署默认
@@ -178,6 +184,7 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 - **请求解码**：`?q=` 先按首字符 `'{'` 判明文 JSON、否则 inflate——明文路径零异常，压缩路径只在 inflate 失败时回落一次（raw deflate 首字节是 BFINAL/BTYPE 位，没有固定魔数，不能靠头字节判定）。
 - **长提示词打包**：base64 用 8192 字节分块 `String.fromCharCode.apply`，避免逐字符 `+=` 导致的多次字符串重建。
 - **请求竞态隔离**：每个会话独立记录最新请求 id，同会话连点只认最后一次、跨会话互不干扰。
+- **可中断优化**：每次请求挂 `AbortController`，重发/点中断即 `abort()`，浏览器断开 fetch 连带宿主 `res.on('close')` abort，两端一起停，不留悬挂请求。
 - **静默优化零阻塞**：独立 LLM 通道 + 90 秒超时 + turn 取消信号，失败/超时一律降级原文，绝不卡住对话。
 - **UI 渲染减负**：tab 标题不再订阅 `useTabInfo`（静态文案，避免随每次结果推送多渲染一轮）；`selectDraft`/`useInput` fallback 提到模块级不随渲染重建；静默开关读写合并为一个 `silentRequest`；按钮「优化中」态只在成功/失败一条路径上复位，不再双重复位。
 
@@ -204,6 +211,7 @@ node F:\WorkSpace\_verify_silent_menu.mjs # 静默项在菜单中：点击只写
 node F:\WorkSpace\_verify_structured.mjs # 结构化模板 7 段结构 + buildRequest 20 项
 node F:\WorkSpace\_verify_silent.mjs    # 静默优化：/silent 状态路由 + agent/pre-step 替换 + source.optimizer 20 项
 node F:\WorkSpace\_verify_decode.mjs    # 请求解码：deflate-raw 与明文 base64url 两条路径 + 空输入，走真实 host handler
+node F:\WorkSpace\_verify_model_menu.mjs # 菜单模型选择：跟随/切换 provider/model/思考程度 + 中断 aborted 12 项
 ```
 
 ## 排障
@@ -213,7 +221,8 @@ node F:\WorkSpace\_verify_decode.mjs    # 请求解码：deflate-raw 与明文 b
 | 输入框右侧没有「✦ 优化」 | 浏览器半边未组合进 boot 图 | 重启 DeepSeek Harness |
 | 点了没弹出右侧栏 | 该会话的 rightbar surface 未挂载（如主面板切到别的 panel，或侧边栏被整个关掉） | 插件会自动重新打开侧边栏并重试 2 秒；仍失败回到对话视图再点 |
 | 面板显示「优化失败：模型调用失败：…」 | 上游 provider 报错（如 502） | 换模型或稍后重试；错误原文会透传 |
-| 标签是「默认模型」 | 浏览器端读不到会话选中模型 | 在输入框模型选择器里选一次模型 |
+| 标签是「默认模型」 | 浏览器端读不到会话选中模型 | 在输入框模型选择器里选一次模型，或在「✦ 优化」菜单里手动选一个优化模型 |
+| 优化跑太久/想换模型 | 上游慢 | 再点「✦ 优化」→「中断优化」，换模型后重试 |
 | 静默优化没生效 | 该会话开关没开 / 消息含附件 / 是后续 tool 轮次 | 确认「✦ 优化」按钮点亮（=静默已开）、选过类型；只替换第一步纯文本用户消息 |
 | 静默优化让对话变慢 | 发送前会先跑一次 LLM 优化（独立通道，90 秒超时） | 属预期；失败/超时会自动降级原文，不阻塞 |
 | `content.some is not a function` | 传了裸字符串 messages | 已在 `normalizeMessages` 归一化为 block 数组 |
