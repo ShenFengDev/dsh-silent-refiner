@@ -1,8 +1,8 @@
-# dsh-prompt-optimizer-shenfeng
+# dsh-silent-refiner
 
 把 [prompt-optimizer](https://github.com/linshenkx/prompt-optimizer) 的优化策略搬进 DeepSeek Harness（DSH）：**用对话中当前选中的模型**优化你的提示词，**结果只显示在右侧栏**，可一键复制。
 
-> npm 包名为 `dsh-prompt-optimizer-shenfeng`（`dsh-prompt-optimizer` 已被占用）。内部 HTTP 路由仍固定为 `/dsh-prompt-optimizer/*`，与包名解耦，是稳定标识，下面的接口/排障里的路径都按这个来。
+> 插件名 `dsh-silent-refiner` 取自它最核心的差异化能力——**静默优化**（发送前无感把提示词换成优化版，输入框保持不变）。内部 HTTP 路由固定为 `/dsh-prompt-optimizer/*`、tab key 为 `dsh-prompt-optimizer`，都与包名解耦，是稳定标识，下面的接口/排障里的路径都按这个来。从旧包名 `dsh-prompt-optimizer-shenfeng` 迁移的用户需要重新安装一次。
 
 - 宿主半边：暴露只读 GET 接口 + 注册 `agent/pre-step` 钩子做静默优化，模型调用一律走 DSH 的 `ctx.llm`（凭据在宿主侧，插件不接触 apiKey）。
 - 浏览器半边：输入框右侧「✦ 优化」入口（点它弹出上拉类型选择窗 → 右侧栏结果 tab）+ 一个「静默优化」开关。
@@ -64,14 +64,14 @@
 
 ## 安装（npm 包，推荐）
 
-包名：`dsh-prompt-optimizer-shenfeng`（npm 上 `dsh-prompt-optimizer` 已被他人占用）。
+包名：`dsh-silent-refiner`（npm 上 `dsh-prompt-optimizer` 已被他人占用）。
 
 ### 方式一：DSH 图形界面
 
 `Settings / Plugins → Add plugin`，填包名（带精确版本）：
 
 ```
-dsh-prompt-optimizer-shenfeng@1.1.1
+dsh-silent-refiner@1.2.0
 ```
 
 DSH 会用 `pnpm view` 先读音、再 `saveExact` 装进 profile，并自动把 bundle 的 patch 叠加进 loader。装完重启 DeepSeek Harness 让浏览器半边进入 boot 图。
@@ -79,22 +79,22 @@ DSH 会用 `pnpm view` 先读音、再 `saveExact` 装进 profile，并自动把
 ### 方式二：命令行
 
 ```powershell
-dsh plugin --profile desktop add dsh-prompt-optimizer-shenfeng@1.1.1
+dsh plugin --profile desktop add dsh-silent-refiner@1.2.0
 ```
 
 ### 方式三：本地目录（开发调试）
 
 `Add plugin` 里填本仓库的绝对路径，或让 profile 的 `package.json` 依赖指向它：
 
-1. `package.json` → `dependencies` 有 `"dsh-prompt-optimizer-shenfeng": "link:F:/WorkSpace/dsh-prompt-optimizer"`，`dsh.profile.bundles` 末尾含该包名。
-2. `node_modules/dsh-prompt-optimizer-shenfeng` 是指向本仓库的 junction。
+1. `package.json` → `dependencies` 有 `"dsh-silent-refiner": "link:F:/WorkSpace/dsh-prompt-optimizer"`，`dsh.profile.bundles` 末尾含该包名。
+2. `node_modules/dsh-silent-refiner` 是指向本仓库的 junction。
 
 bundle 的 `cordis.patch.yml` 只插一行，且 `name` 必须与包名一致：
 
 ```yaml
 - insert:
     - id: prompt-optimizer
-      name: dsh-prompt-optimizer-shenfeng
+      name: dsh-silent-refiner
       config: {}
 ```
 
@@ -112,7 +112,7 @@ ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
 
 ```yaml
 minimumReleaseAgeExclude:
-  - dsh-prompt-optimizer-shenfeng@1.1.1
+  - dsh-silent-refiner@1.2.0
 ```
 
 ## 发布到 npm（维护者）
