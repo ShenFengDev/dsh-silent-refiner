@@ -158,6 +158,14 @@ sidebar.right.pane.tab (promptOptimizer)        ├ resolveRoute: 会话模型 �
 
 为什么走 GET + query：DSH 的 `webServer` prefix 路由只对 `handler` 形态读请求，`resource` 形态直接对非 GET/HEAD 返回 405，所以请求参数压进 `?q=`（base64url JSON）。
 
+## 性能与可靠性
+
+- **模板模块热取**：`statSync` 走顶层静态 import（每次优化都要用，动态 import 的额外 await 是纯开销）；模板 mod 按 mtime 缓存，文件没变就复用。
+- **模型路由缓存**：provider 的模型列表按 ctx 缓存 30 秒，每次优化省掉 2 次跨进程 IPC；模型列表变动最多 30 秒后生效。
+- **长提示词打包**：base64 用 8192 字节分块 `String.fromCharCode.apply`，避免逐字符 `+=` 导致的多次字符串重建。
+- **请求竞态隔离**：每个会话独立记录最新请求 id，同会话连点只认最后一次、跨会话互不干扰（旧实现用单值会误取消别的会话）。
+- **静默优化零阻塞**：独立 LLM 通道 + 90 秒超时 + turn 取消信号，失败/超时一律降级原文，绝不卡住对话。
+
 ## 文件
 
 | 文件 | 作用 |
