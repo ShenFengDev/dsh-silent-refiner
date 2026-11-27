@@ -43,11 +43,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ShenFengDev/dsh-prompt-optimizer.git"
+    "url": "git+https://github.com/ShenFengDev/dsh-silent-refiner.git"
   },
-  "homepage": "https://github.com/ShenFengDev/dsh-prompt-optimizer#readme",
+  "homepage": "https://github.com/ShenFengDev/dsh-silent-refiner#readme",
   "bugs": {
-    "url": "https://github.com/ShenFengDev/dsh-prompt-optimizer/issues"
+    "url": "https://github.com/ShenFengDev/dsh-silent-refiner/issues"
   },
   "author": "ShenFengDev",
   "license": "MIT"
