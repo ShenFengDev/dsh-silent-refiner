@@ -3,4 +3,4 @@
 # client 半边（lib/client.js）注册右侧栏 tab 与会话标题区入口。
 - insert:
     - id: prompt-optimizer
-      name: dsh-prompt-optimizer
+      name: dsh-prompt-optimizer-shenfeng
